@@ -139,10 +139,18 @@ package body Aion.Runtime is
          end if;
       end Mark_Tasks_Cancelled;
 
-      procedure Mark_Rejected is
+      procedure Mark_Spawn_Rejected is
       begin
          Rejected_Total := Rejected_Total + 1;
-      end Mark_Rejected;
+
+         if Spawned_Total > 0 then
+            Spawned_Total := Spawned_Total - 1;
+         end if;
+
+         if Active_Total > 0 then
+            Active_Total := Active_Total - 1;
+         end if;
+      end Mark_Spawn_Rejected;
 
       function State return Aion.Types.Runtime_State is
       begin
@@ -362,10 +370,11 @@ package body Aion.Runtime is
       Aion.Task_Handle.Mark_Scheduled (Handle);
       Job := Aion.Scheduler.Make_Job (Handle, Work);
 
+      Runtime.State.Mark_Spawned;
       Runtime.Queue.Try_Enqueue (Job, Accepted);
 
       if not Accepted then
-         Runtime.State.Mark_Rejected;
+         Runtime.State.Mark_Spawn_Rejected;
          Aion.Task_Handle.Mark_Cancelled (Handle, "runtime queue rejected the task");
          return Spawn_Results.Failure
            (Aion.Errors.Capacity_Exceeded,
@@ -373,7 +382,6 @@ package body Aion.Runtime is
             "Aion.Runtime.Spawn");
       end if;
 
-      Runtime.State.Mark_Spawned;
       return Spawn_Results.Success (Handle);
    end Spawn;
 

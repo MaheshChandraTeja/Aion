@@ -79,7 +79,7 @@ private
       procedure Mark_Task_Completed;
       procedure Mark_Task_Failed;
       procedure Mark_Tasks_Cancelled (Count : Natural);
-      procedure Mark_Rejected;
+      procedure Mark_Spawn_Rejected;
 
       function State return Aion.Types.Runtime_State;
       function Active_Task_Count return Interfaces.Unsigned_64;
