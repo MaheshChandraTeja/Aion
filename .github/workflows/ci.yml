@@ -1,0 +1,23 @@
+name: Aion CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNAT and GPRbuild
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnat gprbuild
+      - name: Build library
+        run: gprbuild -P aion.gpr
+      - name: Build tests
+        run: gprbuild -P aion_tests.gpr
+      - name: Run tests
+        run: ./bin/test_runner
+      - name: Build examples
+        run: gprbuild -P aion_examples.gpr

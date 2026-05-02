@@ -1,0 +1,30 @@
+name: Aion Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ada toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnat gprbuild
+      - name: Build release artifacts
+        run: |
+          gprbuild -P aion.gpr
+          gprbuild -P aion_tests.gpr
+          ./bin/test_runner
+          gprbuild -P aion_examples.gpr
+          gprbuild -P aion_benchmarks.gpr
+      - name: Create source archive
+        run: git archive --format zip --output aion-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aion-source
+          path: aion-source.zip

@@ -1,0 +1,22 @@
+name: Aion Benchmarks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ada toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnat gprbuild
+      - name: Build benchmarks
+        run: gprbuild -P aion_benchmarks.gpr
+      - name: Run benchmark smoke tests
+        run: |
+          ./bin/bench_scheduler
+          ./bin/bench_timers
+          ./bin/bench_channels
+          ./bin/bench_cancellation

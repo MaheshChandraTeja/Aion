@@ -1,0 +1,37 @@
+with "aion.gpr";
+
+project Aion_Examples is
+   for Source_Dirs use ("examples");
+   for Object_Dir use "obj/examples";
+   for Exec_Dir use "bin";
+   for Main use
+     ("aion_module1_app.adb",
+      "config_validation_demo.adb",
+      "runtime_core_demo.adb",
+      "scheduler_demo.adb",
+      "future_promise_demo.adb",
+      "runtime_future_demo.adb",
+      "timer_demo.adb",
+      "timeout_demo.adb",
+      "interval_demo.adb",
+      "reactor_demo.adb",
+      "reactor_backend_demo.adb",
+      "echo_server.adb",
+      "echo_client.adb",
+      "tcp_timeout_demo.adb",
+      "udp_ping_pong.adb",
+      "sync_primitives_demo.adb",
+      "channel_demo.adb",
+      "actor_mailbox_demo.adb",
+      "select_demo.adb",
+      "cancellation_demo.adb",
+      "task_group_demo.adb",
+      "supervisor_demo.adb",
+      "observability_demo.adb",
+      "release_diagnostics_demo.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2012", "-O2", "-gnata", "-gnatwa");
+   end Compiler;
+end Aion_Examples;

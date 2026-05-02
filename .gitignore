@@ -1,0 +1,536 @@
+# =============================================================================
+# Aion .gitignore
+# Structured asynchronous runtime for Ada
+#
+# Covers:
+# - GNAT / GPRbuild build artifacts
+# - Alire local state
+# - Ada object/library files
+# - Windows binaries and debug files
+# - benchmark/test output
+# - generated docs
+# - release archives/installers
+# - local IDE/editor files
+# - temporary patches and extracted ZIPs
+# - logs, caches, secrets, and environment files
+# =============================================================================
+
+
+# =============================================================================
+# GNAT / Ada / GPRbuild artifacts
+# =============================================================================
+
+# Ada compilation artifacts
+*.ali
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+*.exp
+*.lexch
+
+# GPRbuild exchange/bind/link artifacts
+*.bexch
+*.lexch
+*.adb.stdout
+*.adb.stderr
+
+# GNAT bind-generated files
+b__*.adb
+b__*.ads
+b_*.adb
+b_*.ads
+
+# GNAT coverage / profiling / traces
+*.gcda
+*.gcno
+*.gcov
+*.prof
+*.trace
+*.srctrace
+
+# GNATprove / SPARK artifacts
+gnatprove/
+*.spark
+*.alfa
+*.siv
+
+# GPRbuild output directories
+obj/
+obj-*/
+obj_*/
+.objects/
+.gprbuild/
+
+# Library output
+lib/
+lib64/
+
+# Executable output
+bin/
+out/
+build/
+build-*/
+debug/
+release-build/
+
+
+# =============================================================================
+# Alire artifacts
+# =============================================================================
+
+# Alire local build/cache/config state
+.alire/
+alire/
+alire.lock
+
+# Optional: keep this ignored while local-pinning dependencies during development.
+# Commit it only when you intentionally want reproducible dependency locking.
+# If publishing to Alire, review this before release.
+# alire.lock
+
+
+# =============================================================================
+# Aion release outputs
+# =============================================================================
+
+release/
+releases/
+dist/
+artifacts/
+packages/
+publish/
+pkg/
+installer/
+installers/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Checksums / manifests generated during release
+checksums.sha256.txt
+checksums.sha512.txt
+release-manifest.json
+release-notes.generated.md
+SBOM.json
+sbom.json
+
+# Windows installers / packages
+*.msi
+*.exe
+*.msix
+*.appx
+*.appxbundle
+*.msixbundle
+
+# Linux packages
+*.deb
+*.rpm
+*.AppImage
+
+# macOS packages
+*.pkg
+*.dmg
+
+
+# =============================================================================
+# Ada executable artifacts
+# =============================================================================
+
+# Windows executables
+*.exe
+
+# Debug symbols and maps
+*.pdb
+*.ilk
+*.map
+*.dbg
+*.debug
+*.dSYM/
+*.sym
+
+# Static/dynamic runtime leftovers
+*.dll.a
+*.dll.lib
+
+
+# =============================================================================
+# Tests, benchmark, and runtime output
+# =============================================================================
+
+test-results/
+test_output/
+test-output/
+coverage/
+coverage-html/
+reports/
+benchmark-results/
+bench-results/
+benchmarks/output/
+benchmarks/results/
+
+# Runtime logs
+logs/
+log/
+*.log
+*.log.*
+*.out
+*.err
+
+# Temporary diagnostic dumps
+diagnostics/
+diagnostic-output/
+runtime-dumps/
+crash-dumps/
+*.dump
+*.dmp
+
+
+# =============================================================================
+# Generated documentation
+# =============================================================================
+
+docs/generated/
+docs/api/
+docs/html/
+docs/site/
+site/
+public/
+book/
+mdbook/
+.adoc-output/
+
+# Documentation build caches
+.mermaid-cache/
+.plantuml-cache/
+
+
+# =============================================================================
+# Temporary patch files and extracted folders
+# =============================================================================
+
+patches/tmp/
+tmp/
+temp/
+.tmp/
+.cache/
+.cache-*/
+scratch/
+sandbox/
+
+# Aion module patch ZIPs and extracted patch folders
+aion_module*_patch/
+aion_module*_patch.zip
+aion_*_patch/
+aion_*_patch.zip
+
+# Local extracted module folders
+aion_module1/
+aion_module2/
+aion_module3/
+aion_module4/
+aion_module5/
+aion_module6/
+aion_module7/
+aion_module8/
+aion_module9/
+aion_module10/
+
+# Patch manifests are usually temporary unless deliberately included in release docs
+PATCH_MANIFEST.md
+
+
+# =============================================================================
+# Local environment files / secrets
+# =============================================================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+*.keystore
+*.jks
+
+secrets/
+private/
+credentials/
+tokens/
+keys/
+
+# Signing material must never be committed.
+*.sig
+*.asc
+codesign/
+signing/
+certs/
+
+
+# =============================================================================
+# IDE / editor files
+# =============================================================================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# GNAT Studio / GPS
+.gps/
+*.gpr.user
+*.cgpr
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+*~
+.netrwhist
+
+# Emacs
+\#*\#
+.#*
+*.elc
+auto-save-list/
+tramp
+
+# Cursor / AI IDE state
+.cursor/
+.cursorignore
+.cursorrules
+
+# Misc editor backup files
+*.bak
+*.backup
+*.orig
+*.rej
+
+
+# =============================================================================
+# OS-specific junk
+# =============================================================================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Windows Defender / SmartScreen metadata sometimes appears in extracted folders
+Zone.Identifier
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+
+# =============================================================================
+# PowerShell / script temporary files
+# =============================================================================
+
+*.ps1xml
+*.pssc
+*.psrc
+PowerShell_transcript*.txt
+
+# Script-generated local files
+tools/tmp/
+tools/output/
+tools/logs/
+
+
+# =============================================================================
+# Python helper artifacts
+# =============================================================================
+# Ignore these because docs/tools/scripts may use Python helpers later.
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+*.egg-info/
+
+
+# =============================================================================
+# Node / web tooling artifacts
+# =============================================================================
+# Ignore in case docs site or release tooling later uses JS tooling.
+# Because one innocent documentation site somehow becomes 700 MB of node_modules.
+# Humanity remains undefeated at making folders worse.
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+.next/
+.nuxt/
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+
+
+# =============================================================================
+# C/C++ interop artifacts
+# =============================================================================
+# Useful if Aion later gets native reactor bindings.
+
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+compile_commands.json
+Makefile
+*.make
+*.cmake
+
+*.i
+*.ii
+*.s
+*.asm
+
+
+# =============================================================================
+# Profiling / performance tooling
+# =============================================================================
+
+perf.data
+perf.data.old
+callgrind.out.*
+cachegrind.out.*
+massif.out.*
+*.speedscope.json
+flamegraph.svg
+
+
+# =============================================================================
+# Local databases / state files
+# =============================================================================
+
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+
+# =============================================================================
+# Network test leftovers
+# =============================================================================
+
+tcp-test-output/
+udp-test-output/
+socket-dumps/
+pcaps/
+*.pcap
+*.pcapng
+
+
+# =============================================================================
+# Large generated files
+# =============================================================================
+
+*.iso
+*.img
+*.vhd
+*.vhdx
+*.qcow2
+
+
+# =============================================================================
+# Keep important source/config files tracked
+# =============================================================================
+
+!src/**/*.ads
+!src/**/*.adb
+!tests/**/*.adb
+!tests/**/*.ads
+!examples/**/*.adb
+!examples/**/*.ads
+!benchmarks/**/*.adb
+!benchmarks/**/*.ads
+
+!*.gpr
+!alire.toml
+!README.md
+!LICENSE
+!CHANGELOG.md
+
+!docs/**/*.md
+!tools/**/*.ps1
+!tools/**/*.sh
+
+
+# =============================================================================
+# Project-specific notes
+# =============================================================================
+
+# Do not commit generated binaries, installers, local release ZIPs, test output,
+# local Alire state, signing keys, or extracted patch folders.
+#
+# Commit:
+# - source files
+# - tests
+# - examples
+# - benchmark source
+# - docs
+# - project files
+# - manifests intentionally required for reproducible builds
+#
+# Do not commit:
+# - bin/
+# - obj/
+# - lib/
+# - release/
+# - dist/
+# - *.exe
+# - *.ali
+# - *.o
+# - *.a
+# - signing keys
+# =============================================================================
