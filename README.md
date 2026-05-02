@@ -8,6 +8,7 @@
 ![Library](https://img.shields.io/badge/type-library-informational)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![Alire](https://img.shields.io/endpoint?url=https://alire.ada.dev/badges/aion.json)](https://alire.ada.dev/crates/aion.html)
 
 **Aion** is a structured asynchronous runtime for Ada, built for reliable scheduling, typed futures, timers, networking, async synchronization, channels, cancellation-safe task orchestration, diagnostics, and benchmarkable systems software.
 
