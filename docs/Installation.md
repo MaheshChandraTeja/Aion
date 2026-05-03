@@ -1,535 +1,289 @@
 # Aion Installation
 
-This guide explains how to install, build, package, and consume Aion as an Ada library.
+This guide shows how to install Aion for use from another Ada project. It includes both supported paths:
 
-Aion is designed to be used through **Alire** and **GPRbuild**. Alire manages Ada dependencies and toolchains. GPRbuild compiles Ada projects through `.gpr` project files. Together, they form the least painful path, which in Ada tooling terms is practically a spa day.
+- Alire dependency: `alr with aion`
+- Manual GitHub pull: clone the repository and pin or reference it locally
 
 ---
 
 ## 1. Prerequisites
 
-You need:
+Install:
 
 ```text
 Alire
 GNAT
 GPRbuild
-PowerShell or terminal
 Git
+PowerShell or another terminal
 ```
 
-Recommended platform for current development:
-
-```text
-Windows 10/11
-Alire-managed GNAT native compiler
-Alire-managed GPRbuild
-```
-
-Aion should also be structurally portable to Linux and macOS, especially for core runtime, futures, timers, channels, and cancellation. Native networking backend maturity depends on the platform backend implementation.
-
----
-
-## 2. Install Alire
-
-Download and install Alire from the official Alire distribution for your platform.
-
-After installation, verify:
+Verify the toolchain:
 
 ```powershell
 alr --version
-```
-
-If that works, select/install the Ada toolchain:
-
-```powershell
 alr toolchain --select
-```
-
-Choose:
-
-```text
-gnat_native
-gprbuild
-```
-
-Then verify through Alire:
-
-```powershell
 alr exec -- gnat --version
 alr exec -- gprbuild --version
 ```
 
-If plain `gprbuild` does not work but `alr exec -- gprbuild` works, that is normal. Alire manages its own toolchain paths. Windows PATH is not psychic, despite all evidence that software expects it to be.
+If `gprbuild` is not available globally but works through `alr exec -- gprbuild`, that is fine. Alire manages toolchain paths for you.
 
 ---
 
-## 3. Clone or Place Aion Locally
+## 2. Option A: Install Through Alire
 
-Example project location:
+Use this when Aion is available from the Alire index.
 
-```powershell
-F:\Projects-INT\Aion
-```
-
-If using Git:
+Create or open your Ada application:
 
 ```powershell
-cd F:\Projects-INT
-git clone https://github.com/<your-user-or-org>/Aion.git
-cd Aion
+alr init --bin my_app
+cd my_app
 ```
 
-If using a local folder, just open PowerShell in the Aion root.
-
-You should see:
-
-```text
-aion.gpr
-aion_tests.gpr
-aion_examples.gpr
-aion_benchmarks.gpr
-alire.toml
-src/
-tests/
-examples/
-benchmarks/
-docs/
-```
-
----
-
-## 4. Build the Aion Library
-
-From the Aion root:
-
-```powershell
-alr exec -- gprbuild -P aion.gpr
-```
-
-Expected output includes compilation and a static library build, usually something like:
-
-```text
-Build Libraries
-[gprlib]       aion.lexch
-[archive]      libaion.a
-[index]        libaion.a
-```
-
-That means the library project builds successfully.
-
----
-
-## 5. Build Examples
-
-```powershell
-alr exec -- gprbuild -P aion_examples.gpr
-```
-
-Run a simple example:
-
-```powershell
-.\bin\aion_module1_app.exe
-```
-
-Run the observability example:
-
-```powershell
-.\bin\observability_demo.exe
-```
-
-If the executable is not in `bin`, find it:
-
-```powershell
-Get-ChildItem -Recurse -Filter "observability_demo.exe"
-```
-
----
-
-## 6. Build Tests
-
-```powershell
-alr exec -- gprbuild -P aion_tests.gpr
-```
-
-Run the test runner:
-
-```powershell
-.\bin\test_runner.exe
-```
-
-Clean rebuild:
-
-```powershell
-Remove-Item .\obj -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item .\bin -Recurse -Force -ErrorAction SilentlyContinue
-
-alr exec -- gprbuild -P aion.gpr
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-```
-
----
-
-## 7. Build Benchmarks
-
-```powershell
-alr exec -- gprbuild -P aion_benchmarks.gpr
-```
-
-Run benchmark binaries:
-
-```powershell
-.\bin\bench_scheduler.exe
-.\bin\bench_spawn.exe
-.\bin\bench_timers.exe
-.\bin\bench_channels.exe
-.\bin\bench_cancellation.exe
-.\bin\bench_reactor.exe
-.\bin\bench_tcp_echo.exe
-```
-
-Example benchmark output:
-
-```text
-scheduler_stats_snapshot: operations=100000, elapsed_ms=22, ops_per_sec=4.54545454545455E+06
-queue_capacity= 16384
-```
-
-Treat benchmark results as local machine indicators, not universal truth tablets carried down from Mount Compiler.
-
----
-
-## 8. Use Aion in Another Ada Project
-
-Create a consumer project:
-
-```powershell
-cd C:\Users\MarshFang\Downloads
-alr init --bin aion_consumer
-cd aion_consumer
-```
-
-Add Aion as a local dependency:
-
-```powershell
-alr with aion --use F:\Projects-INT\Aion
-```
-
-This tells Alire to use your local Aion library.
-
-Check the generated/updated manifest:
-
-```powershell
-Get-Content .\alire.toml
-```
-
-You should see a dependency/pin reference to Aion.
-
----
-
-## 9. Minimal Consumer Code
-
-Replace `src/aion_consumer.adb` with:
-
-```ada
-with Ada.Text_IO;
-with Aion;
-with Aion.Config;
-with Aion.Runtime;
-with Aion.Errors;
-
-procedure Aion_Consumer is
-   Config  : constant Aion.Config.Runtime_Config := Aion.Config.Default;
-   Runtime : Aion.Runtime.Runtime_Handle := Aion.Runtime.Create (Config);
-
-   Shutdown_Result : Aion.Runtime.Operation_Results.Result_Type;
-begin
-   Aion.Initialize;
-
-   Ada.Text_IO.Put_Line ("Using " & Aion.Name);
-   Ada.Text_IO.Put_Line (Aion.Description);
-   Ada.Text_IO.Put_Line ("Aion runtime created successfully.");
-
-   Shutdown_Result := Aion.Runtime.Shutdown (Runtime);
-
-   if Aion.Runtime.Operation_Results.Is_Ok (Shutdown_Result) then
-      Ada.Text_IO.Put_Line ("Runtime shut down successfully.");
-   else
-      Ada.Text_IO.Put_Line
-        ("Runtime shutdown failed: "
-         & Aion.Errors.Image
-             (Aion.Runtime.Operation_Results.Error (Shutdown_Result)));
-   end if;
-end Aion_Consumer;
-```
-
-Build:
-
-```powershell
-alr build
-```
-
-Run:
-
-```powershell
-alr run
-```
-
-Expected output:
-
-```text
-Using Aion
-Aion is a structured asynchronous runtime and scheduler foundation for Ada.
-Aion runtime created successfully.
-Runtime shut down successfully.
-```
-
-That confirms Aion is usable as a library from a separate project.
-
----
-
-## 10. Ada Import Syntax
-
-Ada does not use:
-
-```ada
-import Aion;
-```
-
-Ada uses:
-
-```ada
-with Aion;
-```
-
-For child packages:
-
-```ada
-with Aion.Runtime;
-with Aion.Config;
-with Aion.Future;
-with Aion.Channel.Bounded;
-```
-
-Then call with qualified names:
-
-```ada
-Aion.Runtime.Create
-Aion.Config.Default
-```
-
-This is more explicit than Python-style imports. Slightly more typing, far fewer mystery names. A reasonable trade, despite humanity’s tragic allergy to verbosity.
-
----
-
-## 11. Package Aion as a Library
-
-Aion’s library project file should expose a library build.
-
-Example `aion.gpr` shape:
-
-```ada
-library project Aion is
-
-   for Source_Dirs use ("src");
-   for Object_Dir use "obj/lib";
-   for Library_Dir use "lib";
-   for Library_Name use "aion";
-   for Library_Kind use "static";
-
-   package Compiler is
-      for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatwa", "-O2");
-   end Compiler;
-
-end Aion;
-```
-
-Build:
-
-```powershell
-alr exec -- gprbuild -P aion.gpr
-```
-
-Expected artifact:
-
-```text
-lib/libaion.a
-```
-
----
-
-## 12. Recommended `alire.toml`
-
-```toml
-name = "aion"
-description = "Structured asynchronous runtime for Ada"
-version = "0.1.0"
-licenses = "MIT"
-authors = ["Kairais Tech"]
-maintainers = ["Kairais Tech"]
-maintainers-logins = ["MaheshChandraTeja"]
-website = "https://www.kairais.com"
-tags = ["ada", "async", "runtime", "scheduler", "networking", "concurrency"]
-
-project-files = ["aion.gpr"]
-
-[build-switches]
-"*".ada_version = "Ada2022"
-```
-
-Keep the manifest clean. Do not turn it into a motivational poster.
-
----
-
-## 13. Publish Later as an Alire Crate
-
-When Aion is ready for external use:
-
-```powershell
-git add .
-git commit -m "Release Aion v0.1.0"
-git tag v0.1.0
-git push origin main
-git push origin v0.1.0
-```
-
-Then:
-
-```powershell
-alr publish
-```
-
-Once published, consumers can use:
+Add Aion:
 
 ```powershell
 alr with aion
 ```
 
-instead of:
-
-```powershell
-alr with aion --use F:\Projects-INT\Aion
-```
-
----
-
-## 14. Common Installation Problems
-
-### `gprbuild` is not recognized
-
-Use:
-
-```powershell
-alr exec -- gprbuild -P aion.gpr
-```
-
-Alire may know where `gprbuild` is even when your global PATH does not.
-
-### `gnat1` missing
-
-Your GNAT installation is incomplete or not correctly selected. Run:
-
-```powershell
-alr toolchain --select
-```
-
-Then retry:
-
-```powershell
-alr exec -- gnat --version
-alr exec -- gprbuild --version
-```
-
-### Consumer project cannot find Aion
-
-Re-add the local dependency:
-
-```powershell
-alr with aion --use F:\Projects-INT\Aion
-```
-
-Then:
+Build:
 
 ```powershell
 alr build
 ```
 
-### Filename warning in consumer project
-
-If the file is:
-
-```text
-aion_consumer.adb
-```
-
-then the procedure should be:
-
-```ada
-procedure Aion_Consumer is
-```
-
-GNAT expects Ada unit names and filenames to match.
-
-### Cannot ignore function result
-
-If a function returns a result, store it:
-
-```ada
-Shutdown_Result := Aion.Runtime.Shutdown (Runtime);
-```
-
-Ada does not let you throw return values into the void. Rude? Maybe. Useful? Definitely.
+This updates your `alire.toml` with an Aion dependency and lets Alire resolve the crate.
 
 ---
 
-## 15. Recommended Developer Commands
+## 3. Option B: Manual GitHub Pull With Alire Pin
 
-From the Aion root:
+Use this when you want to depend on a local checkout from GitHub.
+
+Clone Aion:
 
 ```powershell
-alr exec -- gprbuild -P aion.gpr
-alr exec -- gprbuild -P aion_examples.gpr
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-alr exec -- gprbuild -P aion_benchmarks.gpr
+git clone https://github.com/MaheshChandraTeja/Aion.git C:\src\Aion
 ```
 
-Clean all generated output:
+Create or open your application:
 
 ```powershell
-Remove-Item .\obj -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item .\bin -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item .\lib -Recurse -Force -ErrorAction SilentlyContinue
+alr init --bin my_app
+cd my_app
+```
+
+Pin your application to the local checkout:
+
+```powershell
+alr with aion --use C:\src\Aion
+```
+
+Build:
+
+```powershell
+alr build
+```
+
+Use this same command when developing against a local Aion branch:
+
+```powershell
+alr with aion --use <path-to-your-aion-checkout>
 ```
 
 ---
 
-## 16. Installation Status Checklist
+## 4. Option C: Manual GitHub Pull Without Alire
 
-Aion is installed correctly when all of these pass:
+Use this when your application is a plain GPRbuild project.
+
+Clone Aion:
 
 ```powershell
-alr exec -- gprbuild -P aion.gpr
-alr exec -- gprbuild -P aion_examples.gpr
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-alr exec -- gprbuild -P aion_benchmarks.gpr
+git clone https://github.com/MaheshChandraTeja/Aion.git C:\src\Aion
 ```
 
-Aion is usable as a library when a separate consumer project can run:
+Reference Aion from your application project file:
+
+```ada
+with "C:\src\Aion\aion.gpr";
+
+project My_App is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("main.adb");
+end My_App;
+```
+
+Build your application:
 
 ```powershell
-alr with aion --use F:\Projects-INT\Aion
+gprbuild -P my_app.gpr
+```
+
+If you still want to use Alire only for the compiler environment:
+
+```powershell
+alr exec -- gprbuild -P my_app.gpr
+```
+
+---
+
+## 5. Minimal Consumer Program
+
+Replace your generated main file with:
+
+```ada
+with Ada.Text_IO;
+with Aion;
+with Aion.Config;
+with Aion.Errors;
+with Aion.Runtime;
+
+procedure My_App is
+   Runtime : Aion.Runtime.Runtime_Handle :=
+     Aion.Runtime.Create (Aion.Config.Default);
+
+   Started  : Aion.Runtime.Operation_Results.Result_Type;
+   Shutdown : Aion.Runtime.Operation_Results.Result_Type;
+begin
+   Aion.Initialize;
+
+   Ada.Text_IO.Put_Line ("Using " & Aion.Name);
+   Ada.Text_IO.Put_Line (Aion.Description);
+
+   Started := Aion.Runtime.Start (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Started) then
+      Ada.Text_IO.Put_Line
+        ("Runtime start failed: "
+         & Aion.Errors.Image
+             (Aion.Runtime.Operation_Results.Error (Started)));
+      return;
+   end if;
+
+   Ada.Text_IO.Put_Line ("Aion runtime started.");
+
+   Shutdown := Aion.Runtime.Shutdown (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Shutdown) then
+      Ada.Text_IO.Put_Line
+        ("Runtime shutdown failed: "
+         & Aion.Errors.Image
+             (Aion.Runtime.Operation_Results.Error (Shutdown)));
+   end if;
+end My_App;
+```
+
+Build and run:
+
+```powershell
 alr build
 alr run
 ```
 
-and print:
+Expected output includes:
 
 ```text
 Using Aion
-Aion runtime created successfully.
-Runtime shut down successfully.
+Aion runtime started.
 ```
+
+---
+
+## 6. Build Aion From Its Source Checkout
+
+If you cloned Aion and want to verify the library itself:
+
+```powershell
+cd C:\src\Aion
+alr exec -- gprbuild -P aion.gpr
+```
+
+Build examples:
+
+```powershell
+alr exec -- gprbuild -P aion_examples.gpr
+```
+
+Build tests:
+
+```powershell
+alr exec -- gprbuild -P aion_tests.gpr
+.\bin\test_runner.exe
+```
+
+Build benchmarks:
+
+```powershell
+alr exec -- gprbuild -P aion_benchmarks.gpr
+```
+
+---
+
+## 7. Recommended Consumer Layout
+
+```text
+my_app/
+├── alire.toml
+├── my_app.gpr
+└── src/
+    ├── my_app.adb
+    ├── app_jobs.ads
+    └── app_jobs.adb
+```
+
+Place runtime job procedures in package-level units such as `app_jobs.ads` and `app_jobs.adb` when passing them to Aion with `'Access`.
+
+---
+
+## 8. Troubleshooting
+
+### `alr with aion` cannot find the crate
+
+Aion may not be available in your configured Alire index yet. Use the local checkout form:
+
+```powershell
+alr with aion --use C:\src\Aion
+```
+
+### Consumer project cannot find Aion after a manual pull
+
+Confirm the local path points to the repository root containing `alire.toml` and `aion.gpr`:
+
+```powershell
+Get-ChildItem C:\src\Aion
+```
+
+Then re-run:
+
+```powershell
+alr with aion --use C:\src\Aion
+alr build
+```
+
+### `gprbuild` is not recognized
+
+Use Alire's toolchain environment:
+
+```powershell
+alr exec -- gprbuild -P aion.gpr
+```
+
+### Ada cannot find a package
+
+Make sure the top of your Ada unit has the needed `with` clauses:
+
+```ada
+with Aion;
+with Aion.Runtime;
+with Aion.Config;
+```
+
+Ada does not use `import Aion`.
+
+### Runtime job access errors
+
+Move the job procedure into a library-level or package-level unit before passing it with `'Access`.

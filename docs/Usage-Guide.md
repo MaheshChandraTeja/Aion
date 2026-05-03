@@ -1,20 +1,73 @@
 # Aion Usage Guide
 
-This guide shows how to use Aion as an Ada library in a real project. It assumes Aion is available either as a local Alire dependency or as a packaged crate.
+This guide is for developers who want to use Aion as a library in their own Ada project.
 
-Ada does not use `import Aion`. Ada uses:
-
-```ada
-with Aion;
-```
-
-Yes, the keyword is `with`. Ada picked its own vocabulary and then committed to the bit for decades. We respect the dedication.
+If you are working inside the Aion repository itself, use the build and test commands in `Installation.md`. This page assumes you are writing a separate application that depends on Aion.
 
 ---
 
-## 1. Basic Import Pattern
+## 1. Add Aion to Your Project
 
-To use Aion packages, add `with` clauses at the top of your Ada unit:
+### Alire crate
+
+If Aion is available from the Alire index, add it from your application root:
+
+```powershell
+alr with aion
+```
+
+Then build your application:
+
+```powershell
+alr build
+```
+
+### Local GitHub checkout
+
+If you pulled Aion manually from GitHub, pin your application to that local checkout:
+
+```powershell
+git clone https://github.com/MaheshChandraTeja/Aion.git C:\src\Aion
+
+cd C:\src\my_app
+alr with aion --use C:\src\Aion
+alr build
+```
+
+Use the real path where you cloned Aion.
+
+### Manual GPRbuild project
+
+If your application does not use Alire, reference Aion from your `.gpr` project file:
+
+```ada
+with "C:\src\Aion\aion.gpr";
+
+project My_App is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("main.adb");
+end My_App;
+```
+
+Build with:
+
+```powershell
+gprbuild -P my_app.gpr
+```
+
+If `gprbuild` is only available through Alire, use:
+
+```powershell
+alr exec -- gprbuild -P my_app.gpr
+```
+
+---
+
+## 2. Import Aion Packages
+
+Ada uses `with`, not `import`:
 
 ```ada
 with Aion;
@@ -22,92 +75,74 @@ with Aion.Config;
 with Aion.Runtime;
 ```
 
-Then reference names through their package:
+Call Aion APIs through qualified package names:
 
 ```ada
-Aion.Name
-Aion.Config.Default
-Aion.Runtime.Create
+Aion.Initialize;
+Aion.Config.Default;
+Aion.Runtime.Create;
 ```
 
-Recommended style:
-
-```ada
-with Aion;
-with Aion.Config;
-with Aion.Runtime;
-
-procedure Main is
-begin
-   -- Use qualified names.
-end Main;
-```
-
-Avoid broad `use` clauses in larger applications unless the package is small and local. Qualified names make runtime code easier to audit.
+Qualified names are recommended for application code because they keep runtime, channel, cancellation, and networking calls easy to audit.
 
 ---
 
-## 2. Minimal Runtime Program
+## 3. Minimal Application
 
 ```ada
 with Ada.Text_IO;
 with Aion;
 with Aion.Config;
-with Aion.Runtime;
 with Aion.Errors;
+with Aion.Runtime;
 
 procedure Main is
-   Config  : constant Aion.Config.Runtime_Config := Aion.Config.Default;
-   Runtime : Aion.Runtime.Runtime_Handle := Aion.Runtime.Create (Config);
+   Runtime : Aion.Runtime.Runtime_Handle :=
+     Aion.Runtime.Create (Aion.Config.Default);
 
-   Shutdown_Result : Aion.Runtime.Operation_Results.Result_Type;
+   Started  : Aion.Runtime.Operation_Results.Result_Type;
+   Shutdown : Aion.Runtime.Operation_Results.Result_Type;
 begin
    Aion.Initialize;
 
    Ada.Text_IO.Put_Line ("Using " & Aion.Name);
    Ada.Text_IO.Put_Line (Aion.Description);
-   Ada.Text_IO.Put_Line ("Runtime created successfully.");
 
-   Shutdown_Result := Aion.Runtime.Shutdown (Runtime);
+   Started := Aion.Runtime.Start (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Started) then
+      Ada.Text_IO.Put_Line
+        ("Runtime start failed: "
+         & Aion.Errors.Image
+             (Aion.Runtime.Operation_Results.Error (Started)));
+      return;
+   end if;
 
-   if Aion.Runtime.Operation_Results.Is_Ok (Shutdown_Result) then
-      Ada.Text_IO.Put_Line ("Runtime shut down successfully.");
-   else
+   Ada.Text_IO.Put_Line ("Aion runtime started.");
+
+   Shutdown := Aion.Runtime.Shutdown (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Shutdown) then
       Ada.Text_IO.Put_Line
         ("Runtime shutdown failed: "
          & Aion.Errors.Image
-             (Aion.Runtime.Operation_Results.Error (Shutdown_Result)));
+             (Aion.Runtime.Operation_Results.Error (Shutdown)));
    end if;
 end Main;
 ```
 
-This is the smallest useful Aion application: create configuration, create runtime, shut it down safely.
+Build and run from your application root:
+
+```powershell
+alr build
+alr run
+```
 
 ---
 
-## 3. Runtime Configuration
+## 4. Runtime Configuration
 
-Aion uses `Aion.Config.Runtime_Config` to configure runtime behavior.
+Use `Aion.Config.Runtime_Config` to configure the runtime before creating it.
 
-Typical pattern:
-
-```ada
-with Aion.Config;
-with Aion.Runtime;
-
-procedure Main is
-   Config  : Aion.Config.Runtime_Config := Aion.Config.Default;
-   Runtime : Aion.Runtime.Runtime_Handle;
-begin
-   Config := Aion.Config.With_Name (Config, "my-aion-app");
-   Config := Aion.Config.With_Workers (Config, 4);
-   Config := Aion.Config.With_Max_Queue_Depth (Config, 1024);
-
-   Runtime := Aion.Runtime.Create (Config);
-end Main;
-```
-
-However, be careful: `Runtime_Handle` is a limited type. You usually cannot assign it after declaration. Prefer direct initialization through a helper function:
+`Runtime_Handle` is a limited type, so prefer direct initialization:
 
 ```ada
 with Aion.Config;
@@ -120,6 +155,7 @@ procedure Main is
       Config := Aion.Config.With_Name (Config, "my-aion-app");
       Config := Aion.Config.With_Workers (Config, 4);
       Config := Aion.Config.With_Max_Queue_Depth (Config, 1024);
+      Config := Aion.Config.With_Shutdown_Timeout (Config, 2_000);
 
       return Aion.Runtime.Create (Config);
    end Make_Runtime;
@@ -130,21 +166,21 @@ begin
 end Main;
 ```
 
-Ada limited types prevent accidental copying of runtime ownership. It feels fussy until it prevents an entire class of lifecycle bugs. Then it feels fussy and useful.
-
 ---
 
-## 4. Spawning Runtime Jobs
+## 5. Spawn Runtime Work
 
-Aion runtime jobs are procedures. For simple examples, use library-level job procedures. Avoid deeply nested procedures when passing access values, because Ada enforces accessibility rules.
+Aion runtime work is passed as a procedure access value. Keep job procedures at library level or package level so Ada accessibility rules are satisfied.
 
-Example job package:
+`demo_jobs.ads`:
 
 ```ada
 package Demo_Jobs is
    procedure Print_Message;
 end Demo_Jobs;
 ```
+
+`demo_jobs.adb`:
 
 ```ada
 with Ada.Text_IO;
@@ -157,382 +193,156 @@ package body Demo_Jobs is
 end Demo_Jobs;
 ```
 
-Use it from an app:
+Use the job from your application:
 
 ```ada
 with Ada.Text_IO;
 with Aion.Config;
-with Aion.Runtime;
 with Aion.Errors;
+with Aion.Runtime;
 with Demo_Jobs;
 
 procedure Main is
-   Config  : constant Aion.Config.Runtime_Config := Aion.Config.Default;
-   Runtime : Aion.Runtime.Runtime_Handle := Aion.Runtime.Create (Config);
+   Runtime : Aion.Runtime.Runtime_Handle :=
+     Aion.Runtime.Create (Aion.Config.Default);
 
-   Spawn_Result    : Aion.Runtime.Operation_Results.Result_Type;
-   Shutdown_Result : Aion.Runtime.Operation_Results.Result_Type;
+   Started  : Aion.Runtime.Operation_Results.Result_Type;
+   Spawned  : Aion.Runtime.Spawn_Results.Result_Type;
+   Shutdown : Aion.Runtime.Operation_Results.Result_Type;
 begin
-   Spawn_Result :=
+   Started := Aion.Runtime.Start (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Started) then
+      Ada.Text_IO.Put_Line ("Runtime start failed.");
+      return;
+   end if;
+
+   Spawned :=
      Aion.Runtime.Spawn
        (Runtime,
         Name => "demo-job",
-        Job  => Demo_Jobs.Print_Message'Access);
+        Work => Demo_Jobs.Print_Message'Access);
 
-   if not Aion.Runtime.Operation_Results.Is_Ok (Spawn_Result) then
+   if Aion.Runtime.Spawn_Results.Is_Err (Spawned) then
       Ada.Text_IO.Put_Line
         ("Spawn failed: "
          & Aion.Errors.Image
-             (Aion.Runtime.Operation_Results.Error (Spawn_Result)));
+             (Aion.Runtime.Spawn_Results.Error (Spawned)));
    end if;
 
-   Shutdown_Result := Aion.Runtime.Shutdown (Runtime);
+   Shutdown := Aion.Runtime.Shutdown (Runtime);
+   if Aion.Runtime.Operation_Results.Is_Err (Shutdown) then
+      Ada.Text_IO.Put_Line
+        ("Runtime shutdown failed: "
+         & Aion.Errors.Image
+             (Aion.Runtime.Operation_Results.Error (Shutdown)));
+   end if;
 end Main;
 ```
 
-If Ada complains that a subprogram is too deep for an access type, move the job procedure into a library-level package. That is Ada saving you from lifetime bugs while somehow making you feel personally judged.
-
 ---
 
-## 5. Futures and Promises
+## 6. Futures and Promises
 
-Aion futures are generic and typed. You instantiate them for the value type you want.
-
-Example:
+Aion futures are generic and typed. Instantiate a future package for the value type, then instantiate promises with that future package.
 
 ```ada
 with Ada.Text_IO;
+with Aion.Block_On;
 with Aion.Future;
 with Aion.Promise;
-with Aion.Errors;
 
 procedure Future_Demo is
    package Int_Futures is new Aion.Future.Generic_Future (Integer);
-   package Int_Promises is new Aion.Promise.Generic_Promise (Integer);
+   package Int_Promises is new Aion.Promise.Generic_Promise (Int_Futures);
+   package Int_Block_On is new Aion.Block_On.Generic_Block_On (Int_Futures);
 
-   Pair : Int_Promises.Promise_Future_Pair :=
-     Int_Promises.Create;
+   Promise : Int_Promises.Promise_Handle;
+   Future  : Int_Futures.Future_Handle;
 
-   Completed : Int_Futures.Value_Results.Result_Type;
+   Complete_Result : Int_Promises.Operation_Results.Result_Type;
+   Await_Result    : Int_Futures.Value_Results.Result_Type;
 begin
-   Completed := Int_Promises.Complete_Success (Pair.Promise, 42);
+   Int_Promises.New_Promise (Promise, Future, "answer");
 
-   if Int_Futures.Value_Results.Is_Ok (Completed) then
-      Ada.Text_IO.Put_Line ("Future completed.");
-   else
+   Complete_Result := Int_Promises.Complete (Promise, 42);
+   if Int_Promises.Operation_Results.Is_Err (Complete_Result) then
+      Ada.Text_IO.Put_Line ("Promise completion failed.");
+      return;
+   end if;
+
+   Await_Result := Int_Block_On.Run (Future);
+   if Int_Futures.Value_Results.Is_Ok (Await_Result) then
       Ada.Text_IO.Put_Line
-        ("Future failed: "
-         & Aion.Errors.Image
-             (Int_Futures.Value_Results.Error (Completed)));
+        ("Future value:"
+         & Integer'Image (Int_Futures.Value_Results.Value (Await_Result)));
    end if;
 end Future_Demo;
 ```
 
-Typed futures are more verbose than dynamic payloads, but the compiler knows what is inside them. This is generally better than finding out at runtime that your “message” was actually a swamp.
-
 ---
 
-## 6. Timers and Timeouts
+## 7. Package Areas
 
-Aion provides timer-oriented packages:
+Common packages:
 
 ```ada
+with Aion.Runtime;
+with Aion.Config;
+with Aion.Future;
+with Aion.Promise;
 with Aion.Time;
-with Aion.Sleep;
 with Aion.Timeout;
-with Aion.Interval;
-with Aion.Deadline;
+with Aion.Net.TCP;
+with Aion.Net.UDP;
+with Aion.Channel.Bounded;
+with Aion.Channel.Oneshot;
+with Aion.Sync.Mutex;
+with Aion.Cancel_Source;
+with Aion.Cancel_Token;
+with Aion.Task_Group;
+with Aion.Supervisor;
+with Aion.Diagnostics;
+with Aion.Metrics;
 ```
 
-A simple sleep-style call should look like:
+Use bounded channels when you need backpressure, cancellation tokens for graceful shutdown, task groups for owned sets of work, and supervisors for restartable services.
 
-```ada
-Aion.Time.Sleep_For (Milliseconds => 500);
-```
-
-Timeouts wrap operations with a maximum wait period. In real applications, prefer timeout-aware APIs around futures and networking operations rather than unbounded waits.
-
-Example idea:
-
-```ada
--- Pseudocode-shaped example:
-Result := Aion.Timeout.Await_With_Timeout
-  (Future,
-   Timeout_MS => 2_000);
-```
-
-Exact usage depends on the instantiated future type.
+The selector package is named `Aion.Selector`, not `Aion.Select`, because `select` is an Ada reserved word.
 
 ---
 
-## 7. Async Networking
+## 8. Source Checkout Examples
 
-Aion networking is exposed through:
-
-```ada
-with Aion.Net;
-with Aion.Net.Address;
-with Aion.Net.TCP;
-with Aion.Net.TCP_Listener;
-with Aion.Net.TCP_Stream;
-with Aion.Net.UDP;
-```
-
-Typical flow:
-
-```text
-Create address
-Create runtime
-Bind listener or connect stream
-Await accept/connect result
-Read/write through stream futures
-Close stream
-Shutdown runtime
-```
-
-The included examples demonstrate:
-
-```text
-examples/echo_server.adb
-examples/echo_client.adb
-examples/tcp_timeout_demo.adb
-examples/udp_ping_pong.adb
-```
-
-Run the echo server and client in separate terminals:
+If you cloned the Aion repository and want to run its included examples:
 
 ```powershell
-cd F:\Projects-INT\Aion
+cd C:\src\Aion
+alr exec -- gprbuild -P aion_examples.gpr
+.\bin\runtime_core_demo.exe
+.\bin\future_promise_demo.exe
+.\bin\channel_demo.exe
+.\bin\observability_demo.exe
+```
+
+For TCP echo examples, run the server and client in separate terminals:
+
+```powershell
 .\bin\echo_server.exe
 ```
 
-Second terminal:
-
 ```powershell
-cd F:\Projects-INT\Aion
 .\bin\echo_client.exe
 ```
 
-A server must remain running while the client connects. Computers remain stubborn about causality.
-
 ---
 
-## 8. Synchronization Primitives
+## 9. Common Mistakes
 
-Aion provides async-aware synchronization packages:
+Do not write:
 
 ```ada
-with Aion.Sync;
-with Aion.Sync.Mutex;
-with Aion.Sync.Semaphore;
-with Aion.Sync.Event;
-with Aion.Sync.Condvar;
-with Aion.Sync.Barrier;
-with Aion.Sync.RWLock;
-with Aion.Sync.Once;
+import Aion;
 ```
-
-Use these when coordinating Aion runtime tasks. They are intended to cooperate with Aion’s future/waker/runtime model.
-
-Examples are in:
-
-```text
-examples/sync_primitives_demo.adb
-```
-
----
-
-## 9. Channels and Actors
-
-Aion provides typed communication packages:
-
-```ada
-with Aion.Channel;
-with Aion.Channel.Bounded;
-with Aion.Channel.Unbounded;
-with Aion.Channel.Oneshot;
-with Aion.Channel.Broadcast;
-with Aion.Channel.Watch;
-with Aion.Stream;
-with Aion.Actor;
-with Aion.Selector;
-```
-
-Use bounded channels when you need backpressure. Use unbounded channels sparingly. “Unbounded” means “it can eat memory until the machine starts writing poetry in swap.”
-
-Example files:
-
-```text
-examples/channel_demo.adb
-examples/actor_mailbox_demo.adb
-examples/select_demo.adb
-```
-
-Important: the selector package is named `Aion.Selector`, not `Aion.Select`, because `select` is reserved in Ada.
-
----
-
-## 10. Cancellation and Structured Concurrency
-
-Aion provides structured concurrency through:
-
-```ada
-with Aion.Cancel;
-with Aion.Cancel_Token;
-with Aion.Cancel_Source;
-with Aion.Task_Group;
-with Aion.Join_Set;
-with Aion.Supervisor;
-with Aion.Scope;
-with Aion.Retry;
-```
-
-Use these packages to avoid orphaned tasks and unmanaged shutdown behavior.
-
-Examples:
-
-```text
-examples/cancellation_demo.adb
-examples/task_group_demo.adb
-examples/supervisor_demo.adb
-```
-
-A good Aion application should prefer:
-
-```text
-Task group / scope / supervisor
-```
-
-over:
-
-```text
-spawn everything and hope
-```
-
-Hope is not a concurrency primitive.
-
----
-
-## 11. Observability
-
-Aion provides observability through:
-
-```ada
-with Aion.Metrics;
-with Aion.Tracing;
-with Aion.Diagnostics;
-with Aion.Test_Support;
-with Aion.Benchmark_Support;
-```
-
-Use diagnostics to produce human-readable runtime and build information. Use metrics snapshots to inspect subsystem behavior.
-
-Examples:
-
-```text
-examples/observability_demo.adb
-examples/release_diagnostics_demo.adb
-```
-
-Benchmarks:
-
-```text
-benchmarks/bench_scheduler.adb
-benchmarks/bench_spawn.adb
-benchmarks/bench_timers.adb
-benchmarks/bench_channels.adb
-benchmarks/bench_tcp_echo.adb
-benchmarks/bench_cancellation.adb
-benchmarks/bench_reactor.adb
-```
-
----
-
-## 12. Building Aion
-
-Build the library:
-
-```powershell
-alr exec -- gprbuild -P aion.gpr
-```
-
-Build examples:
-
-```powershell
-alr exec -- gprbuild -P aion_examples.gpr
-```
-
-Build tests:
-
-```powershell
-alr exec -- gprbuild -P aion_tests.gpr
-```
-
-Build benchmarks:
-
-```powershell
-alr exec -- gprbuild -P aion_benchmarks.gpr
-```
-
-If `gprbuild` is not recognized directly, use `alr exec -- gprbuild`. Alire manages the toolchain environment. Windows PATH, naturally, prefers drama.
-
----
-
-## 13. Running Tests
-
-```powershell
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-```
-
-If the binary is not in `bin`, locate it:
-
-```powershell
-Get-ChildItem -Recurse -Filter "test_runner.exe"
-```
-
----
-
-## 14. Running Benchmarks
-
-```powershell
-alr exec -- gprbuild -P aion_benchmarks.gpr
-.\bin\bench_scheduler.exe
-.\bin\bench_spawn.exe
-.\bin\bench_timers.exe
-.\bin\bench_channels.exe
-.\bin\bench_cancellation.exe
-.\bin\bench_reactor.exe
-.\bin\bench_tcp_echo.exe
-```
-
----
-
-## 15. Recommended Application Structure
-
-A clean Aion consumer project can use:
-
-```text
-my_app/
-├── alire.toml
-├── my_app.gpr
-└── src/
-    ├── my_app.adb
-    ├── app_jobs.ads
-    ├── app_jobs.adb
-    ├── app_config.ads
-    └── app_config.adb
-```
-
-Keep runtime job procedures in library-level packages when passing `'Access`.
-
-This avoids Ada accessibility errors and keeps runtime entry points clear.
-
----
-
-## 16. Common Mistakes
-
-### Mistake: using `import Aion`
 
 Use:
 
@@ -540,76 +350,10 @@ Use:
 with Aion;
 ```
 
-### Mistake: ignoring function results
+Check returned result values. Runtime start, spawn, shutdown, future completion, channel send, and channel receive operations can report errors.
 
-If `Shutdown` returns a result, store and check it:
+Use `Work =>` when calling `Aion.Runtime.Spawn`, `Aion.Task_Group.Spawn`, or `Aion.Supervisor.Spawn`.
 
-```ada
-Shutdown_Result := Aion.Runtime.Shutdown (Runtime);
-```
+Keep runtime job procedures outside nested scopes when passing `'Access`.
 
-### Mistake: assigning limited runtime handles
-
-Prefer direct initialization:
-
-```ada
-Runtime : Aion.Runtime.Runtime_Handle := Aion.Runtime.Create (Config);
-```
-
-### Mistake: nested job procedure access
-
-Move callback procedures into a package-level unit.
-
-### Mistake: using `Aion.Select`
-
-Use:
-
-```ada
-with Aion.Selector;
-```
-
-### Mistake: running echo server and client sequentially in the same terminal
-
-Run the server in one terminal and the client in another.
-
----
-
-## 17. Practical Development Loop
-
-For day-to-day development:
-
-```powershell
-alr exec -- gprbuild -P aion.gpr
-alr exec -- gprbuild -P aion_examples.gpr
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-alr exec -- gprbuild -P aion_benchmarks.gpr
-```
-
-For a clean rebuild:
-
-```powershell
-Remove-Item .\obj -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item .\bin -Recurse -Force -ErrorAction SilentlyContinue
-
-alr exec -- gprbuild -P aion.gpr
-alr exec -- gprbuild -P aion_tests.gpr
-.\bin\test_runner.exe
-```
-
----
-
-## 18. Recommended Usage Style
-
-For serious applications:
-
-- keep package names qualified,
-- check every result,
-- avoid hidden global runtime state,
-- use bounded channels by default,
-- use task groups/scopes for lifecycle ownership,
-- use supervisors for restartable services,
-- expose diagnostics in your app,
-- keep examples and tests warning-free.
-
-The runtime should make concurrency safer, not merely easier to type. Easier-to-type bugs are still bugs. They just arrive faster.
+Prefer direct initialization for `Runtime_Handle`; it is a limited type and should not be copied around.
